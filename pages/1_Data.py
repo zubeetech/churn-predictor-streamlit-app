@@ -3,23 +3,8 @@ import os
 import pyodbc
 import pandas as pd
 
-st.title('VODAFONE CLASSIFICATION AND PREDICTING CUSTOMER CHURN')
+st.title('VODAFONE CUSTOMER CHURN PREDICTOR')
 
-# @st.cache_resource(show_spinner='Connecting to Database......')
-# def initialize_connection():
-#     connection = pyodbc.connect(
-#         "DRIVER={SQL Server};SERVER="
-#         + st.secrets["SERVER"]
-#         +";DATABASE="
-#         + st.secrets["DATABASE"]
-#         +";UID="
-#         + st.secrets["UID"]
-#         +";PWD="
-#         + st.secrets["PWD"]
-#     )
-#     return connection
-    
-# conn = initialize_connection()
 @st.cache_resource(show_spinner='connecting to database...')
 def initialize_connection():
     server = "dap-projects-database.database.windows.net"
