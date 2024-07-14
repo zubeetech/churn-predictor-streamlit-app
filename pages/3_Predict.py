@@ -18,17 +18,17 @@ st.set_page_config(
 # Load models
 @st.cache_data(show_spinner='Model Loading')
 def logistic_regression_pipeline():
-    model = joblib.load('./models/logistic_regression_pipeline.pkl')
+    model = joblib.load('./models/logisticregression.joblib')
     return model
 
 @st.cache_data(show_spinner='Model Loading')
 def random_forest_pipeline():
-    model = joblib.load('./models/random_forest_pipeline.pkl')
+    model = joblib.load('./models/randomforest.joblib')
     return model
 
 @st.cache_resource(show_spinner='Model Loading')
 def load_encoder():
-    encoder = joblib.load('./models/label_encoder.pkl')
+    encoder = joblib.load('./models/encoder.joblib')
     return encoder
 
 def select_model():
@@ -92,53 +92,53 @@ def predict():
             st.write('### Personal Information')
             # Add input fields and store values in input_features dictionary
             gender = st.selectbox('gender', options=['Male', 'Female'], key='gender')
-            SeniorCitizen = st.selectbox('SeniorCitizen', options=['Yes', 'No'], key='SeniorCitizen')
-            Partner = st.selectbox('Partner', options=['Yes', 'No'], key='Partner')
-            Dependents = st.selectbox('Dependents', options=['Yes', 'No'], key='Dependents')
+            SeniorCitizen = st.selectbox('seniorcitizen', options=['Yes', 'No'], key='seniorcitizen')
+            Partner = st.selectbox('partner', options=['Yes', 'No'], key='partner')
+            Dependents = st.selectbox('dependents', options=['Yes', 'No'], key='dependents')
             tenure = st.number_input('tenure', min_value=0, max_value=71, step=1, key='tenure')  
         
         with col2:
             st.write('### Subscriptions')
             # Input fields for subscription-related features
-            PhoneService = st.selectbox('PhoneService', options=['Yes', 'No'], key='PhoneService') 
-            MultipleLines = st.selectbox('MultipleLines', options=['Yes', 'No'], key='MultipleLines') 
-            InternetService = st.selectbox('InternetService', options=['Fiber optic', 'DSL'], key='InternetService') 
-            OnlineSecurity = st.selectbox('OnlineSecurity', options=['Yes', 'No'], key='OnlineSecurity') 
-            OnlineBackup = st.selectbox('OnlineBackup', options=['Yes', 'No'], key='OnlineBackup')
-            DeviceProtection = st.selectbox('DeviceProtection', options=['Yes', 'No'], key='DeviceProtection') 
-            TechSupport = st.selectbox('TechSupport', options=['Yes', 'No'], key='TechSupport') 
-            StreamingTV = st.selectbox('StreamingTV', options=['Yes', 'No'], key='StreamingTV') 
-            StreamingMovies = st.selectbox('StreamingMovies', options=['Yes', 'No'], key='StreamingMovies')  
+            PhoneService = st.selectbox('phoneservice', options=['Yes', 'No'], key='phoneservice') 
+            MultipleLines = st.selectbox('multiplelines', options=['Yes', 'No'], key='multiplelines') 
+            InternetService = st.selectbox('internetservice', options=['Fiber optic', 'DSL'], key='internetservice') 
+            OnlineSecurity = st.selectbox('onlinesecurity', options=['Yes', 'No'], key='onlinesecurity') 
+            OnlineBackup = st.selectbox('onlinebackup', options=['Yes', 'No'], key='onlinebackup')
+            DeviceProtection = st.selectbox('deviceprotection', options=['Yes', 'No'], key='deviceprotection') 
+            TechSupport = st.selectbox('techsupport', options=['Yes', 'No'], key='techsupport') 
+            StreamingTV = st.selectbox('streamingtv', options=['Yes', 'No'], key='streamingtv') 
+            StreamingMovies = st.selectbox('streamingmovies', options=['Yes', 'No'], key='streamingmovies')  
         
         with col3:
             st.write('### Payment Options')
             # Input fields for payment-related features
-            Contract = st.selectbox('Contract', options=['Month-to-month', 'Two year', 'One year'], key='Contract') 
-            PaperlessBilling = st.selectbox('PaperlessBilling', options=['Yes', 'No'], key='PaperlessBilling') 
-            PaymentMethod = st.selectbox('PaymentMethod', options=['Electronic check', 'Credit card (automatic)', 'Mailed check', 'Bank transfer (automatic)'], key='PaymentMethod') 
-            MonthlyCharges = st.number_input('MonthlyCharges', min_value=0, key='MonthlyCharges')
-            TotalCharges = st.number_input('TotalCharges', min_value=0, key='TotalCharges') 
+            Contract = st.selectbox('contract', options=['Month-to-month', 'Two year', 'One year'], key='contract') 
+            PaperlessBilling = st.selectbox('paperlessbilling', options=['Yes', 'No'], key='paperlessbilling') 
+            PaymentMethod = st.selectbox('paymentmethod', options=['Electronic check', 'Credit card (automatic)', 'Mailed check', 'Bank transfer (automatic)'], key='paymentmethod') 
+            MonthlyCharges = st.number_input('monthlycharges', min_value=0, key='monthlycharges')
+            TotalCharges = st.number_input('totalcharges', min_value=0, key='totalcharges') 
    
         input_features = pd.DataFrame({
             'gender': [gender], 
-            'SeniorCitizen': [SeniorCitizen], 
-            'Partner': [Partner], 
-            'Dependents': [Dependents], 
+            'seniorcitizen': [SeniorCitizen], 
+            'partner': [Partner], 
+            'dependents': [Dependents], 
             'tenure': [tenure],
-            'PhoneService': [PhoneService],
-            'MultipleLines': [MultipleLines], 
-            'InternetService': [InternetService],
-            'OnlineSecurity': [OnlineSecurity],
-            'OnlineBackup': [OnlineBackup], 
-            'DeviceProtection': [DeviceProtection], 
-            'TechSupport': [TechSupport], 
-            'StreamingTV': [StreamingTV],
-            'StreamingMovies': [StreamingMovies], 
-            'Contract': [Contract], 
-            'PaperlessBilling': [PaperlessBilling], 
-            'PaymentMethod': [PaymentMethod],
-            'MonthlyCharges': [MonthlyCharges], 
-            'TotalCharges': [TotalCharges]
+            'phoneservice': [PhoneService],
+            'multiplelines': [MultipleLines], 
+            'internetservice': [InternetService],
+            'onlinesecurity': [OnlineSecurity],
+            'onlinebackup': [OnlineBackup], 
+            'deviceprotection': [DeviceProtection], 
+            'techsupport': [TechSupport], 
+            'streamingtv': [StreamingTV],
+            'streamingmovies': [StreamingMovies], 
+            'contract': [Contract], 
+            'paperlessbilling': [PaperlessBilling], 
+            'paymentmethod': [PaymentMethod],
+            'monthlycharges': [MonthlyCharges], 
+            'totalcharges': [TotalCharges]
         })
         st.session_state['df'] = input_features
         st.form_submit_button('Submit', on_click=make_prediction, kwargs=dict(model=model, encoder=encoder))
