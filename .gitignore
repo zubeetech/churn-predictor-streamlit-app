@@ -1,2 +1,5 @@
+.secrets
 /virtual_streamlit_app
-/.streamlit
+.toml
+.venv
+generate_keys.py

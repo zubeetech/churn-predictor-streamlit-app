@@ -1,202 +1,215 @@
-import streamlit as st
-import pandas as pd
-import joblib
 import os
-import numpy as np
-import warnings
-np.warnings = warnings
+import streamlit as st
+import joblib
+import pandas as pd
+import sys
 from sklearn.pipeline import Pipeline
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler, LabelEncoder, MinMaxScaler, OneHotEncoder
+from sklearn.impute import SimpleImputer
+
 
 st.set_page_config(
-    page_title='Predict Page',
-    page_icon=':',
-    layout='wide'
+    page_title="Churn Prediction App",
+    page_icon="👋",
+    layout= 'wide'
 )
+   
 
-# Load models
-@st.cache_data(show_spinner='Model Loading')
-def logistic_regression_pipeline():
-    model = joblib.load('./models/logisticregression.joblib')
-    return model
+st.title('Select a Model and Predict the Future 🔮')
 
-@st.cache_data(show_spinner='Model Loading')
-def random_forest_pipeline():
-    model = joblib.load('./models/randomforest.joblib')
-    return model
 
-@st.cache_resource(show_spinner='Model Loading')
-def load_encoder():
-    encoder = joblib.load('./models/encoder.joblib')
-    return encoder
+@st.cache_resource(show_spinner='Loading prediction Models')
+def load_adaboost():
+    pipeline = joblib.load('./models/adaboost.joblib')
+    return pipeline
 
-def select_model():
-    column1, column2 = st.columns(2)
+
+@st.cache_resource(show_spinner='Loading prediction Models')
+def load_logisticreg():
+    pipeline = joblib.load('./models/logisticregression.joblib')
+    return pipeline
+
+
+@st.cache_resource(show_spinner='Loading prediction Models')
+def load_randomforest():
+    pipeline = joblib.load('./models/randomforest.joblib')
+    return pipeline
+
+
+encoder = joblib.load('./models/encoder.joblib')
+
+## Initialize the session state variables
+if 'pipeline' not in st.session_state:
+    st.session_state['pipeline'] = None
+
+if 'selected_model' not in st.session_state:
+    st.session_state['selected_model'] = None
+
+if 'button_clicked' not in st.session_state:
+    st.session_state['button_clicked'] = False        
+
+#create buttons to select models
+def selected_model():
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        AB = st.button('Adaboost')
+        if AB:
+            st.session_state['selected_model'] = 'adaboost'
+            st.session_state['pipeline'] = load_adaboost()
+            
+
+    with col2:
+        LR = st.button('Logistic Regression')
+        if LR:
+            st.session_state['selected_model'] = 'logistic_regression'
+            st.session_state['pipeline'] = load_logisticreg()
+            
+
+    with col3:
+        RF = st.button('Random Forest')
+        if RF:
+            st.session_state['selected_model'] = 'random_forest'
+            st.session_state['pipeline'] = load_randomforest()        
     
-    with column1:
-        model_name = st.selectbox('Select a Model', options=['Logistic Regression', 'Random Forest'])
-        if model_name == 'Logistic Regression':
-            selected_model = logistic_regression_pipeline()   
-        elif model_name == 'Random Forest':
-            selected_model = random_forest_pipeline()
-        encoder = load_encoder()
-    with column2:
-        pass
-        
-    return selected_model, encoder
 
-def make_prediction(model, encoder):
-    df = st.session_state['df']
-    prediction = model.predict(df)
-    probabilities = model.predict_proba(df)
+def make_prediction(features:pd.DataFrame, model):
+    # Make prediction using the selected model
+    prediction = model.predict(features)
+    probability = model.predict_proba(features)
     
-    st.session_state['prediction'] = prediction
-    st.session_state['probability'] = probabilities
+    return prediction, probability
+
+
+def predict():         
     
-    if isinstance(model, LogisticRegression):
-        model_name = "Logistic Regression"
-    elif isinstance(model, RandomForestClassifier):
-        model_name = "Random Forest"
-    elif isinstance(model, Pipeline):
-        # Check if the pipeline contains Logistic Regression or Random Forest
-        pipeline_steps = model.named_steps.values()
-        if any(isinstance(step, LogisticRegression) for step in pipeline_steps):
-            model_name = "Logistic Regression"
-        elif any(isinstance(step, RandomForestClassifier) for step in pipeline_steps):
-            model_name = "Random Forest"
-        else:
-            model_name = "Unknown Model: Pipeline"
+    selected_model()
+
+    if st.session_state['selected_model'] == None:
+        st.warning('No Model Selected, Please Select a Model to continue')
     else:
-        model_name = "Unknown Model: " + str(type(model))
-        print("Unknown Model: ", type(model))
-        
-    # Save prediction to history CSV file
-    save_prediction_to_csv(df, prediction, model_name)
-    return prediction
-
-def predict():
-    if 'prediction' not in st.session_state:
-        st.session_state['prediction'] = None
+        st.success(f'Selected model is: {st.session_state["selected_model"]}')
     
-    # Dictionary to store input features
-    model, encoder = select_model()
-    st.session_state['model_name'] = model.__class__.__name__  # Store the selected model name
-    
-    with st.form('input feature'):
-        # Form inputs...
-
-        col1, col2, col3 = st.columns(3)
+    # Collecting user input features into a list
+    with st.form('input features'):
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.write('### Personal Information')
+            st.write('### Demographics')
             # Add input fields and store values in input_features dictionary
-            gender = st.selectbox('gender', options=['Male', 'Female'], key='gender')
-            SeniorCitizen = st.selectbox('seniorcitizen', options=['Yes', 'No'], key='seniorcitizen')
-            Partner = st.selectbox('partner', options=['Yes', 'No'], key='partner')
-            Dependents = st.selectbox('dependents', options=['Yes', 'No'], key='dependents')
-            tenure = st.number_input('tenure', min_value=0, max_value=71, step=1, key='tenure')  
-        
+            gender = st.radio('gender', options=['Male', 'Female'], key='gender', horizontal=True)
+            SeniorCitizen = st.radio('SeniorCitizen', options=[0,1], key='SeniorCitizen', horizontal=True)
+            Partner = st.radio('Partner', options=['Yes', 'No'], key='Partner', horizontal=True)
+            Dependents = st.radio('Dependents', options=['Yes', 'No'], key='Dependents', horizontal=True)
+
         with col2:
-            st.write('### Subscriptions')
+            st.write('### Basic Services')
             # Input fields for subscription-related features
-            PhoneService = st.selectbox('phoneservice', options=['Yes', 'No'], key='phoneservice') 
-            MultipleLines = st.selectbox('multiplelines', options=['Yes', 'No'], key='multiplelines') 
-            InternetService = st.selectbox('internetservice', options=['Fiber optic', 'DSL'], key='internetservice') 
-            OnlineSecurity = st.selectbox('onlinesecurity', options=['Yes', 'No'], key='onlinesecurity') 
-            OnlineBackup = st.selectbox('onlinebackup', options=['Yes', 'No'], key='onlinebackup')
-            DeviceProtection = st.selectbox('deviceprotection', options=['Yes', 'No'], key='deviceprotection') 
-            TechSupport = st.selectbox('techsupport', options=['Yes', 'No'], key='techsupport') 
-            StreamingTV = st.selectbox('streamingtv', options=['Yes', 'No'], key='streamingtv') 
-            StreamingMovies = st.selectbox('streamingmovies', options=['Yes', 'No'], key='streamingmovies')  
-        
+            PhoneService = st.radio('PhoneService', options=['Yes', 'No'], key='PhoneService', horizontal=True)             
+            MultipleLines = st.radio('MultipleLines', options=['Yes', 'No'], key='MultipleLines', horizontal=True) 
+            InternetService = st.radio('InternetService', options=['Fiber optic', 'DSL', 'No'], key='InternetService') 
+            OnlineSecurity = st.radio('OnlineSecurity', options=['Yes', 'No'], key='OnlineSecurity', horizontal=True) 
+            
         with col3:
-            st.write('### Payment Options')
+            st.write('### Other Services')
+            OnlineBackup = st.radio('OnlineBackup', options=['Yes', 'No'], key='OnlineBackup', horizontal=True) 
+            DeviceProtection = st.radio('DeviceProtection', options=['Yes', 'No'], key='DeviceProtection', horizontal=True) 
+            TechSupport = st.radio('TechSupport', options=['Yes', 'No'], key='TechSupport', horizontal=True) 
+            StreamingTV = st.radio('StreamingTV', options=['Yes', 'No'], key='StreamingTV', horizontal=True) 
+            StreamingMovies = st.radio('StreamingMovies', options=['Yes', 'No'], key='StreamingMovies', horizontal=True)
+            
+        with col4:
+            st.write('### Billing')
             # Input fields for payment-related features
-            Contract = st.selectbox('contract', options=['Month-to-month', 'Two year', 'One year'], key='contract') 
-            PaperlessBilling = st.selectbox('paperlessbilling', options=['Yes', 'No'], key='paperlessbilling') 
-            PaymentMethod = st.selectbox('paymentmethod', options=['Electronic check', 'Credit card (automatic)', 'Mailed check', 'Bank transfer (automatic)'], key='paymentmethod') 
-            MonthlyCharges = st.number_input('monthlycharges', min_value=0, key='monthlycharges')
-            TotalCharges = st.number_input('totalcharges', min_value=0, key='totalcharges') 
-   
-        input_features = pd.DataFrame({
-            'gender': [gender], 
-            'seniorcitizen': [SeniorCitizen], 
-            'partner': [Partner], 
-            'dependents': [Dependents], 
-            'tenure': [tenure],
-            'phoneservice': [PhoneService],
-            'multiplelines': [MultipleLines], 
-            'internetservice': [InternetService],
-            'onlinesecurity': [OnlineSecurity],
-            'onlinebackup': [OnlineBackup], 
-            'deviceprotection': [DeviceProtection], 
-            'techsupport': [TechSupport], 
-            'streamingtv': [StreamingTV],
-            'streamingmovies': [StreamingMovies], 
-            'contract': [Contract], 
-            'paperlessbilling': [PaperlessBilling], 
-            'paymentmethod': [PaymentMethod],
-            'monthlycharges': [MonthlyCharges], 
-            'totalcharges': [TotalCharges]
-        })
-        st.session_state['df'] = input_features
-        st.form_submit_button('Submit', on_click=make_prediction, kwargs=dict(model=model, encoder=encoder))
-   
-def save_prediction_to_csv(df, prediction, model_name):
-    churn_label = "Churn" if prediction[0] == 1 else "Not Churn"
-    
-    # Concatenate input features, model name, and churn label
-    prediction_df = pd.DataFrame({
-        'Gender': df['gender'],
-        'SeniorCitizen': df['SeniorCitizen'],
-        'Partner': df['Partner'],
-        'Dependents': df['Dependents'],
-        'Tenure': df['tenure'],
-        'PhoneService': df['PhoneService'],
-        'MultipleLines': df['MultipleLines'],
-        'InternetService': df['InternetService'],
-        'OnlineSecurity': df['OnlineSecurity'],
-        'OnlineBackup': df['OnlineBackup'],
-        'DeviceProtection': df['DeviceProtection'],
-        'TechSupport': df['TechSupport'],
-        'StreamingTV': df['StreamingTV'],
-        'StreamingMovies': df['StreamingMovies'],
-        'Contract': df['Contract'],
-        'PaperlessBilling': df['PaperlessBilling'],
-        'PaymentMethod': df['PaymentMethod'],
-        'MonthlyCharges': df['MonthlyCharges'],
-        'TotalCharges': df['TotalCharges'],
-        'Model': model_name,
-        'Churn': churn_label
-    })
-    
-    # Save to CSV file
-    prediction_df.to_csv('data/history.csv', mode='a', header=not os.path.exists('data/history.csv'), index=False)
+            Contract = st.radio('Contract', options=['Month-to-month', 'Two year', 'One year'], key='Contract') 
+            PaperlessBilling = st.radio('PaperlessBilling', options=['Yes', 'No'], key='PaperlessBilling', horizontal=True) 
+            PaymentMethod = st.radio('PaymentMethod', options=['Electronic check', 'Credit card (automatic)', 'Mailed check', 'Bank transfer (automatic)'], key='PaymentMethod') 
+            
+        col5,col6,col7 = st.columns(3)
+        with col5:
+            tenure = st.slider('tenure', min_value=1, max_value=71, step=1, key='tenure') 
+        
+        with col6:
+            MonthlyCharges = st.slider('MonthlyCharges', min_value=1, key='MonthlyCharges')
+        
+        with col7: #auto calculate total charge
+            TotalCharges = MonthlyCharges * tenure
+            st.metric(label='Total Charges', value=TotalCharges, )
+                  
+        if st.form_submit_button('Submit'):
+            st.session_state['button_clicked'] = True
+                         
+            input_features = pd.DataFrame({
+                    'tenure': [tenure],
+                    'monthlycharges': [MonthlyCharges],
+                    'totalcharges': [TotalCharges],
+                    'partner': [Partner],
+                    'dependents': [Dependents],
+                    'phoneservice': [PhoneService],
+                    'multiplelines': [MultipleLines],
+                    'internetservice': [InternetService],
+                    'onlinesecurity': [OnlineSecurity],
+                    'onlinebackup': [OnlineBackup],
+                    'deviceprotection': [DeviceProtection],
+                    'techsupport': [TechSupport],
+                    'streamingtv': [StreamingTV],
+                    'streamingmovies': [StreamingMovies],
+                    'contract': [Contract],
+                    'paperlessbilling': [PaperlessBilling],
+                    'paymentmethod': [PaymentMethod],
+                    'seniorcitizen': [SeniorCitizen],
+                    'gender': [gender]
+                })
+            pred_features = input_features.astype('object')
+            
+            #check whether pipeline is selected
+            if st.session_state['pipeline'] is not None:
+                # Make prediction using the selected model
+                prediction, probabilities = make_prediction(pred_features, st.session_state['pipeline'])
+            else:
+                st.error('No Model Selected, Please Select a Model above to continue')
+                sys.exit()
 
+            if prediction == 0:
+                prediction = 'Stay'
+            else:
+                prediction = 'Churn'
+            
+            probability = pd.DataFrame(probabilities).T
+            stay_proba = round(probability[0][0]*100, ndigits=2)
+            churn_proba = round(probability[0][1]*100, ndigits=2)
+            
+            # Display prediction results
+            st.markdown("### **Prediction Results**")
+            if prediction == 'Stay':
+                st.success(f"The customer has a {stay_proba}% probability of staying")
+            else:
+                st.error(f"The customer is likely to leave with a {churn_proba}% probability")
+            
+            # Add the prediction, churn probability, and model used to the input_features
+            input_features['prediction'] = [prediction]
+            input_features['churn probability %'] = [churn_proba]
+            input_features['remain probability %'] = [stay_proba]
+            input_features['model_used'] = [st.session_state['selected_model']]
+            
+            # Check if the history.csv file exists
+            if os.path.exists('Data/history.csv'):
+                # If it exists, read the existing data and append the input features
+                history_data = pd.read_csv('Data/history.csv')
+                history_data = pd.concat([history_data, input_features], ignore_index=True)
+            else:
+                # If it doesn't exist, create a new dataframe with the input features
+                history_data = input_features
+            
+            history_data.to_csv('Data/history.csv', index=False)
 
+                       
 # Call the data function directly
 if __name__ == '__main__':
-    st.title('Make a Prediction')
     predict()
-
-    # Ensure 'prediction' and 'probability' are initialized in session_state
-    if 'prediction' not in st.session_state:
-        st.session_state['prediction'] = None
-
-    if 'probability' not in st.session_state:
-        st.session_state['probability'] = None
-
-    # Retrieve 'prediction' and 'probability' from session_state
-    prediction = st.session_state['prediction']
-    probability = st.session_state['probability']
-
-    # Display prediction and probability
-    if prediction is None:
-        st.markdown("### Prediction will show here")
-    elif prediction == "Yes":
-        probability_of_yes = probability[0][1] * 100
-        st.markdown(f"### The employee will leave the company with a probability of {probability_of_yes:.2f}%")
-    else:
-        probability_of_no = probability[0][0] * 100
-        st.markdown(f"### Employee will not leave with a probability of {probability_of_no:.2f}%")
+    if st.session_state['button_clicked']:
+        response = st.radio('Do you want to try another model?', options=['No','Yes'])
+        if response == 'Yes':
+            st.session_state['button_clicked'] = False
+            st.session_state['selected_model'] = None
+            st.session_state['pipeline'] = None
+            st.experimental_rerun()

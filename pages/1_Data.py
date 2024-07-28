@@ -1,69 +1,57 @@
 import streamlit as st
-import os
-import pyodbc
+import numpy as np
 import pandas as pd
 
-st.title('VODAFONE CUSTOMER CHURN PREDICTOR')
+st.set_page_config(
+    page_title="Churn Prediction App",
+    page_icon="👋",
+    layout= 'wide'
+)
 
-@st.cache_resource(show_spinner='connecting to database...')
-def initialize_connection():
-    server = "dap-projects-database.database.windows.net"
-    database = "dapDB"
-    uid = "LP2_project"
-    pwd = "Stat$AndD@t@Rul3"
+st.title('Check the data used in building this Web app')
+st.write('Click the buttons to show the dataset')
 
-    connection_string = (
-        "DRIVER={ODBC Driver 17 for SQL Server};"
-        f"SERVER={server};"
-        f"DATABASE={database};"
-        f"UID={uid};"
-        f"PWD={pwd};"
-        "Encrypt=yes;"
-        "TrustServerCertificate=no;"
-    )
+df = pd.read_csv('Data/Dataset.csv')
 
-    try:
-        connection = pyodbc.connect(connection_string)
-        print("Connected successfully!")
-        return connection
-    except pyodbc.Error as e:
-        print("Error connecting to SQL Server:", e)
-        return None
+#show numeric columns
+def show_numerics():
+    numeric = df.select_dtypes(include=[np.number]).columns
+    for col in numeric:
+        df[col] = df[col].apply(lambda x: f"{x:.2f}")
+    return df[numeric]
 
-conn = initialize_connection()
+#show categorical columns
+def show_categoricals():
+    categorical = df.select_dtypes(exclude=[np.number]).columns
+    return df[categorical].drop(columns=['customerID'])
 
-def query_database(query):
-    with conn.cursor() as cur:
-        cur.execute(query)
-        rows = cur.fetchall()
-        df = pd.DataFrame. from_records(data=rows, columns=[ column[0] for column in cur.description])
-    return df
+def SysRerun():
+    st.experimental_rerun()
 
-@st.cache_data()
-def select_all_features():
-    query = "SELECT * FROM LP2_Telco_churn_first_3000"
-    df = query_database(query)
-    return df
+col1, col2, col3 = st.columns(3)
+with col1:
+    All = st.button('Full Dataset',help='Display the full dataset')
+with col2:
+    Numerics = st.button('Numeric Columns', help='Display only the numeric columns')
+with col3:
+    Categorical = st.button('Catgeorical Columns', help='Display only Categorical columns')
 
-@st.cache_data()
-def select_numeric_features():
-    query = "SELECT * FROM LP2_Telco_churn_first_3000"
-    df = query_database(query)
-    numeric_df = df.select_dtypes(include=['number'])
-    return numeric_df
+if Numerics:
+    st.dataframe(show_numerics())
+    Hide = st.button('Hide', help='Hide the Data')
+    if Hide:
+        SysRerun()
+    
+elif Categorical:
+    st.dataframe(show_categoricals())
+    Hide = st.button('Hide', help='Hide the Data')
+    if Hide:
+        SysRerun()
 
-if __name__ == "__main__":
-    col1, col2 = st.columns(2)
-
-    with col1:
-        selected_option = st.selectbox("Select type of features", options=['All features', 'Numeric features'], key="selected_columns")
-
-    with col2:
-        pass
-
-    if selected_option == "All features":
-        data = select_all_features()
-    elif selected_option == "Numeric features":
-        data = select_numeric_features()
-
-    st.dataframe(data)
+elif All:
+    st.dataframe(df)
+    Hide = st.button('Hide', help='Hide the Data')
+    if Hide:
+        SysRerun()
+else:
+    pass

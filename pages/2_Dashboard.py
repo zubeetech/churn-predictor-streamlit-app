@@ -1,179 +1,137 @@
 import streamlit as st
+import numpy as np
 import pandas as pd
-import pyodbc
-import seaborn as sns
-import matplotlib.pyplot as plt
+import plotly_express as px
+import streamlit_authenticator as stauth
 
-# Function to connect to the database
-# @st.cache_resource(show_spinner='Connecting to Database......')
-# def initialize_connection():
-#     connection = pyodbc.connect(
-#         "DRIVER={SQL Server};SERVER="
-#         + st.secrets["SERVER"]
-#         +";DATABASE="
-#         + st.secrets["DATABASE"]
-#         +";UID="
-#         + st.secrets["UID"]
-#         +";PWD="
-#         + st.secrets["PWD"]
-#     )
-#     return connection
+st.set_page_config(
+    page_title="Churn Prediction App",
+    page_icon="👋",
+    layout= 'wide'
+)
 
-@st.cache_resource(show_spinner='connecting to database...')
-def initialize_connection():
-    server = "dap-projects-database.database.windows.net"
-    database = "dapDB"
-    uid = "LP2_project"
-    pwd = "Stat$AndD@t@Rul3"
+# -- LOG OUT --
 
-    connection_string = (
-        "DRIVER={ODBC Driver 17 for SQL Server};"
-        f"SERVER={server};"
-        f"DATABASE={database};"
-        f"UID={uid};"
-        f"PWD={pwd};"
-        "Encrypt=yes;"
-        "TrustServerCertificate=no;"
-    )
 
-    try:
-        connection = pyodbc.connect(connection_string)
-        print("Connected successfully!")
-        return connection
-    except pyodbc.Error as e:
-        print("Error connecting to SQL Server:", e)
-        return None
 
-conn = initialize_connection()
+## -- LOAD DATA --
+df = pd.read_csv('Data/Dataset.csv')
 
-# Function to execute SQL query and return DataFrame
-@st.cache_data()
-def query_database(query):
-    with conn.cursor() as cur:
-        cur.execute(query)
-        rows = cur.fetchall()
-        df = pd.DataFrame.from_records(data=rows, columns=[column[0] for column in cur.description])
-    return df
 
-# Function to load dataset from file
-def load_dataset(file_path):
-    df = pd.read_csv(file_path) if file_path.endswith('.csv') else pd.read_excel(file_path)
-    return df
+def numeric(df):
+    numeric = df.select_dtypes(include=[np.number])
+    return numeric
 
-# Function to display visualizations for each feature
-def display_visualizations(data):
-    st.subheader('Visualizations')
+def categorical(df):
+    categorical = df.select_dtypes(exclude=np.number)
+    return categorical
 
-    # Set style
-    sns.set_style('whitegrid')
+    
+st.session_state['Button'] = None
+st.write('Select a Dahsboard to Display')
 
-    # Create columns layout
-    col1, col2 = st.columns(2)
+#EDA PLOTS
+@st.spinner('Loading',_cache = True)
+def Univariate_plots():
+    st.title("Univariate Analysis")
+    col1, col2, col3 = st.columns(3)
+    cols = categorical(df).columns.drop(['customerID'])
+    for i, col in enumerate(cols):
+        with [col1,col2,col3][i % 3]:
+            data = df[col].value_counts()
+            fig = px.pie(values= data,
+                        names=data.index,
+                        title= (f"{col} Distribution"),
+                        color_discrete_map = {'German Shephard': 'rgb(255,255,0)'}
+                        )
+            st.plotly_chart(fig)
+                
+    col4,col5, col6 = st.columns(3)
+    with col4:
+        fig = px.box(df['tenure'], 
+                    orientation='h',
+                    title='Distribution of Tenure',
+                    hover_data=None
+                    )
+        fig.update_yaxes(visible=False, showticklabels=False)
+        st.plotly_chart(fig)
 
-    # Chart for Gender
+    with col5:
+        fig = px.box(df['MonthlyCharges'], 
+                    orientation='h',
+                    title='Distribution of MonthlyCharges',
+                    hover_data=None
+                    )
+        fig.update_yaxes(visible=False, showticklabels=False)
+        st.plotly_chart(fig)
+        
+    with col6:
+        fig = px.box(df['TotalCharges'], 
+                    orientation='h',
+                    title='Distribution of TotalCharges',
+                    hover_data= None
+                    )
+        fig.update_yaxes(visible=False, showticklabels=False)
+        st.plotly_chart(fig)
+
+            
+@st.spinner('Loading',_cache = True)                
+def Bivariate_plots():
+    st.title('Bivariate Analysis')
+    col1,col2,col3 = st.columns(3)
+    cols = categorical(df).columns.drop(['customerID','Churn'])
+    for i, col in enumerate(cols):
+        with [col1, col2, col3][i % 3]:
+            data = df.groupby('Churn')[col].value_counts().reset_index()
+            fig = px.bar(data,
+                        x=data[col],
+                        y=data['count'],
+                        color = data['Churn'],
+                        title= (f"Churn vs {col}"),
+                        color_discrete_map = {'German Shephard': 'rgb(255,255,0)'}
+                        )
+            st.plotly_chart(fig)
+            
+    numbers = numeric(df)
+    for i, col in enumerate(numbers.columns):
+        data = df.groupby('Churn')[col].value_counts().reset_index()
+        fig = px.bar(data,
+                    x=data[col],
+                    y=data['count'],
+                    color=data['Churn'],
+                    title= (f"Churn vs {col}"),
+                    color_discrete_map = {'German Shephard': 'rgb(255,255,0)'}
+                    )
+        st.plotly_chart(fig)
+    return
+
+
+def Multivariate_plots():
+    st.title('Multivariate Analysis')
+    
+
+def KPI_plots():
+    col1,col2,col3,col4 = st.columns(4)
     with col1:
-        st.write("### Gender Distribution")
-        gender_counts = data['gender'].value_counts()
-        plt.figure(figsize=(10, 6))
-        gender_plot = sns.barplot(x=gender_counts.index, y=gender_counts.values, palette='pastel')
-        gender_plot.set_title('Gender Distribution')
-        gender_plot.set_xlabel('Gender')
-        gender_plot.set_ylabel('Count')
-        st.pyplot(fig=gender_plot.figure)
+        fig = st.metric(value=df['Churn'].sum(), label='Churned Customers')
 
-    # Chart for Tenure
-    with col2:
-        st.write("### Tenure Distribution")
-        plt.figure(figsize=(10, 6))
-        tenure_plot = sns.histplot(data['tenure'], bins=20, kde=True, color='skyblue')
-        tenure_plot.set_title('Tenure Distribution')
-        tenure_plot.set_xlabel('Tenure')
-        tenure_plot.set_ylabel('Frequency')
-        st.pyplot(fig=tenure_plot.figure)
+    
+colA, colB = st.columns(2)
+with colA:
+    EDA = st.button('EDA Dashboard', use_container_width=True)
+    if EDA:
+        st.session_state['Button'] = 'EDA'
+with colB:
+    KPI = st.button('KPI Dashboard', use_container_width=True)
+    if KPI:
+        st.session_state['Button'] = 'KPI'
 
-    # Chart for Contract
-    with col1:
-        st.write("### Contract Distribution")
-        contract_counts = data['Contract'].value_counts()
-        plt.figure(figsize=(10, 6))
-        contract_plot = sns.barplot(x=contract_counts.index, y=contract_counts.values, palette='pastel')
-        contract_plot.set_title('Contract Distribution')
-        contract_plot.set_xlabel('Contract Type')
-        contract_plot.set_ylabel('Count')
-        st.pyplot(fig=contract_plot.figure)
+if st.session_state['Button'] == 'EDA':
+    Univariate_plots()
+    Bivariate_plots()
 
-    # Chart for Payment Method
-    with col2:
-        st.write("### Payment Method Distribution")
-        payment_counts = data['PaymentMethod'].value_counts()
-        plt.figure(figsize=(10, 6))
-        payment_plot = sns.barplot(x=payment_counts.index, y=payment_counts.values, palette='pastel')
-        payment_plot.set_title('Payment Method Distribution')
-        payment_plot.set_xlabel('Payment Method')
-        payment_plot.set_ylabel('Count')
-        payment_plot.set_xticklabels(payment_plot.get_xticklabels(), rotation=45, horizontalalignment='right')
-        st.pyplot(fig=payment_plot.figure)
+elif st.session_state['Button'] == 'KPI':
+    KPI_plots()
 
-    # Chart for Monthly Charges
-    with col1:
-        st.write("### Monthly Charges Distribution")
-        plt.figure(figsize=(10, 6))
-        monthly_charges_plot = sns.histplot(data['MonthlyCharges'], bins=20, kde=True, color='lightgreen')
-        monthly_charges_plot.set_title('Monthly Charges Distribution')
-        monthly_charges_plot.set_xlabel('Monthly Charges')
-        monthly_charges_plot.set_ylabel('Frequency')
-        st.pyplot(fig=monthly_charges_plot.figure)
+  
 
-    # Chart for Total Charges
-    with col2:
-        st.write("### Total Charges Distribution")
-        total_charges_numeric = pd.to_numeric(data['TotalCharges'], errors='coerce').dropna()
-        plt.figure(figsize=(10, 6))
-        total_charges_plot = sns.histplot(total_charges_numeric, bins=20, kde=True, color='salmon')
-        total_charges_plot.set_title('Total Charges Distribution')
-        total_charges_plot.set_xlabel('Total Charges')
-        total_charges_plot.set_ylabel('Frequency')
-        st.pyplot(fig=total_charges_plot.figure)
-
-# Function to perform Exploratory Data Analysis (EDA)
-def perform_eda(data):
-    st.subheader('Exploratory Data Analysis (EDA)')
-
-    # Add EDA code here
-    # You can display descriptive statistics, visualizations, etc.
-
-# Function to calculate Key Performance Indicators (KPIs)
-def calculate_kpis(data):
-    st.subheader('Key Performance Indicators (KPIs)')
-
-    # Add KPI calculation code here
-    # You can calculate churn rate, average revenue, etc.
-
-# Load data from the database
-conn = initialize_connection()
-
-# Title of the dashboard
-st.title('Telco Churn Analysis')
-
-# Add selectbox to choose between EDA and KPIs
-selected_analysis = st.selectbox('Select Analysis Type', ['Exploratory Data Analysis (EDA)', 'Key Performance Indicators (KPIs)'])
-
-# Add selectbox to choose dataset
-selected_dataset = st.selectbox('Select Dataset', ['LP2_Telco_churn_first_3000', 'Telco-churn-last-2000.xlsx', 'LP2_Telco-churn-second-2000.csv'])
-
-if selected_dataset == 'LP2_Telco_churn_first_3000':
-    # Load data from the first dataset
-    data = query_database("SELECT gender, tenure, Contract, PaymentMethod, MonthlyCharges, TotalCharges FROM LP2_Telco_churn_first_3000")
-else:
-    # Load data from the selected file
-    file_path = f"data/{selected_dataset}"
-    data = load_dataset(file_path)
-
-# Perform the selected analysis
-if selected_analysis == 'Exploratory Data Analysis (EDA)':
-    perform_eda(data)
-else:
-    calculate_kpis(data)
-
-# Display visualizations (always shown regardless of the selected analysis)
-display_visualizations(data)
